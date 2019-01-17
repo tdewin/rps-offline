@@ -22,7 +22,7 @@ func main() {
 	port := flag.Int("port", 17132, "Port for local web server")
 	bindto := flag.String("bind", "localhost", "Name for binding, keep localhost for extra security")
 	postscript := flag.String("postscript", "", "Run after json export, if empty, nothing is done")
-	scriptlang := flag.String("scriptlang", "cmd", "Select scripting language")
+	scriptlang := flag.String("scriptlang", "cmd", "Select scripting language. Can be cmd or powershell on windows")
 
 	flag.Parse()
 
