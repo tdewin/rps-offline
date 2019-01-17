@@ -18,6 +18,9 @@ $RECYCLE.BIN/
 # custom ignoring
 *.zip
 orlando.json
+antwerp.json
+brussels.json
+amsterdam.json
 .vscode/*
 
 # Windows shortcuts
