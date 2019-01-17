@@ -15,6 +15,11 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
+# custom ignoring
+*.zip
+orlando.json
+.vscode/*
+
 # Windows shortcuts
 *.lnk
 
