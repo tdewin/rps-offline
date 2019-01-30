@@ -16,14 +16,20 @@ type ZipHandler struct {
 	zipdata     *zip.ReadCloser
 	self        *http.Server
 	subdirinzip string
-	stop        *bool
+	stop        chan bool
 	postscript  string
 	scriptlang  string
 }
 
 //Adding some extra code to pureengine.js to add some functionality when you click (q)uit or (c)sv
+//idea is to add this later to a script called offline.js . When the default is use, it should just include function isOffline() { return false }
+//when offline version is used, this function is used instead of file
 func (z ZipHandler) WriteJSAddon(rw http.ResponseWriter) {
 	fmt.Fprint(rw, `
+
+function isOffline() {
+	return true
+}
 
 $(document).ready(
 	function() {
@@ -36,33 +42,35 @@ $(document).ready(
 
 				var fname = "rpsout-"+moment().format("YYYYMMDDHHmmss")+".csv"
 				var qname = window.prompt("Define CSV export name",fname);
-				if (qname != "") {
-					fname = qname
-				}
+				if (qname != null) {
+					if (qname != "") {
+						fname = qname
+					}
 
-				//https://github.com/tdewin/rps/blob/master/pureengine.js 243 for inspiration
-				for(var counter=0;counter < files.length;counter = counter + 1 ) {
-					var file = files[counter];
-					var stats = file.getDataStats()
-					var textline = [file.toSimpleRetentionString(),file.fullfile(),stats.f()]
+					//https://github.com/tdewin/rps/blob/master/pureengine.js 243 for inspiration
+					for(var counter=0;counter < files.length;counter = counter + 1 ) {
+						var file = files[counter];
+						var stats = file.getDataStats()
+						var textline = [file.toSimpleRetentionString(),file.fullfile(),stats.f()]
+						text.push(textline.join(sep))
+					}
+					textline = ["","Workspace",gsv.backupResult.worstCaseDayWorkingSpace]
 					text.push(textline.join(sep))
-				}
-				textline = ["","Workspace",gsv.backupResult.worstCaseDayWorkingSpace]
-				text.push(textline.join(sep))
-				
-				headersobj = {"X-Action": "savecsv","X-Savefile":fname}
-				
+					
+					headersobj = {"X-Action": "savecsv","X-Savefile":fname}
+					
 
-				$.ajax({
-					type: "POST",
-					url: "/offlinehandler",
-					data: text.join("\r\n"),
-					headers: headersobj,
-					success: function (data) {
-						alert("Exported to CSV : "+data)
-					},
-					dataType: "text"
-				  });
+					$.ajax({
+						type: "POST",
+						url: "/offlinehandler",
+						data: text.join("\r\n"),
+						headers: headersobj,
+						success: function (data) {
+							alert("Exported to CSV : "+data)
+						},
+						dataType: "text"
+					});
+				}
 			} else if (event.which == 106)  {
 				var gsv = GUIStateVariables()
 				var br = gsv.backupResult
@@ -71,8 +79,7 @@ $(document).ready(
 
 
 				var fname = "rpsout-"+datestamp+".json"
-				//for easy demo, should be removed once presented
-				fname = "orlando.json"
+
 				var qname = window.prompt("Define JSON export name",fname);
 				if (qname != null) {
 					if (qname != "") {
@@ -166,10 +173,6 @@ $(document).ready(
 }
 
 func (z ZipHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if *(z.stop) {
-		return
-	}
-
 	path := req.URL.Path[1:]
 
 	if path == "" {
@@ -281,7 +284,7 @@ func (z ZipHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				{
 					fmt.Fprint(rw, "Quiting")
 
-					*(z.stop) = true
+					z.stop <- true
 				}
 			}
 

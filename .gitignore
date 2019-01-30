@@ -21,6 +21,7 @@ orlando.json
 antwerp.json
 brussels.json
 amsterdam.json
+rpsout-*
 .vscode/*
 
 # Windows shortcuts

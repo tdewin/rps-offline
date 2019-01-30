@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/zip"
+	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -10,9 +12,30 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 )
 
+//open the window browser and go to the main page
+func OpenBrowser(seconds time.Duration, listenTo string) {
+	time.Sleep(seconds * time.Second)
+	//linux etc default https://stackoverflow.com/questions/39320371/how-start-web-server-to-open-page-in-browser-in-golang
+	cmd := exec.Command("xdg-open", fmt.Sprintf("http://%s", listenTo))
+	switch runtime.GOOS {
+	case "windows":
+		{
+			cmd = exec.Command("explorer", fmt.Sprintf("http://%s", listenTo))
+		}
+	case "darwin":
+		{
+			cmd = exec.Command("open", fmt.Sprintf("http://%s", listenTo))
+		}
+	}
+	lerr := cmd.Start()
+	if lerr != nil {
+		log.Printf("%v", lerr)
+	}
+}
 func main() {
 
 	masterpack := flag.String("srcurl", "https://github.com/tdewin/rps/archive/master.zip", "Source url to zip")
@@ -56,44 +79,49 @@ func main() {
 		zipr, err := zip.OpenReader(*targetzip)
 		defer zipr.Close()
 		if err != nil {
-			log.Printf("Can not open zip")
+			log.Printf("Can not open zip, if it is corrupted, try deleting it so that it will download again")
 			log.Fatal(err)
 		}
 
 		/*for _, f := range zipr.File {
 			log.Printf("file %s", f.Name)
 		}*/
-
-		stop := false
+		//stop handler so that a stop command can be given from the command line
+		stop := make(chan bool)
 		listenTo := fmt.Sprintf("%s:%d", *bindto, *port)
 		log.Println("Starting ", listenTo)
 
 		srv := &http.Server{Addr: listenTo}
-		http.Handle("/", ZipHandler{zipdata: zipr, self: srv, stop: &stop, subdirinzip: *subdirinzip, postscript: *postscript, scriptlang: *scriptlang})
+		http.Handle("/", ZipHandler{zipdata: zipr, self: srv, stop: stop, subdirinzip: *subdirinzip, postscript: *postscript, scriptlang: *scriptlang})
 
 		go func() {
 			srv.ListenAndServe()
 		}()
 
-		if *browse {
-			go func() {
-				time.Sleep(2 * time.Second)
-				if runtime.GOOS == "windows" {
-					cmd := exec.Command("explorer", fmt.Sprintf("http://%s", listenTo))
-					lerr := cmd.Start()
-					if lerr != nil {
-						log.Printf("%v", lerr)
-					}
+		go func() {
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				switch strings.ToLower(scanner.Text()) {
+				case "quit":
+					stop <- true
+				case "open":
+					OpenBrowser(0, listenTo)
+				default:
+					log.Println("Supported commands : quit, open")
 				}
-			}()
+			}
+
+		}()
+
+		if *browse {
+			//opens the browser with 2 seconds of delay, should be more then enough to get the service started
+			go OpenBrowser(2, listenTo)
 		}
 
-		for !(stop) {
-			time.Sleep(1 * time.Second)
-		}
+		//wait for stop to be true
+		<-stop
 		log.Printf("Shutting down gracefully")
-		time.Sleep(3 * time.Second)
-		srv.Shutdown(nil)
+		srv.Shutdown(context.Background())
 
 	}
 
