@@ -17,6 +17,7 @@ type ZipHandler struct {
 	self        *http.Server
 	subdirinzip string
 	stop        chan bool
+	verbose     *bool
 	postscript  string
 	scriptlang  string
 }
@@ -251,26 +252,38 @@ func (z ZipHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 								switch z.scriptlang {
 								case "cmd":
 									{
-										cmd := exec.Command(z.postscript, abspath)
 										log.Println("Running script ", z.postscript, abspath)
+										cmd := exec.Command(z.postscript, abspath)
+
 										stdoutStderr, err := cmd.CombinedOutput()
 										if err != nil {
 											log.Printf("%v", err)
 										}
-										log.Printf("%s", stdoutStderr)
+										if *(z.verbose) {
+											log.Printf("%s", stdoutStderr)
+										}
 									}
 								case "powershell":
 									{
-										cmd := exec.Command("powershell.exe", "-file", z.postscript, abspath)
 										log.Println("Running script ", "powershell.exe", "-file", z.postscript, abspath)
+										cmd := exec.Command("powershell.exe", "-file", z.postscript, abspath)
+
 										stdoutStderr, err := cmd.CombinedOutput()
 										if err != nil {
 											log.Printf("%v", err)
 										}
-										log.Printf("%s", stdoutStderr)
+										if *(z.verbose) {
+											log.Printf("%s", stdoutStderr)
+										}
+									}
+								default:
+									{
+										log.Printf("Unknown scriptlang %s ", z.scriptlang)
 									}
 								}
 
+							} else {
+								log.Println("No postscript given")
 							}
 							log.Printf("Outputing to %s", fname)
 							fmt.Fprint(rw, fname)

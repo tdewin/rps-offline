@@ -42,12 +42,23 @@ func main() {
 	targetzip := flag.String("tgtzip", "rpsmaster.zip", "Location where zip is download and where it will be used, alternatively can be used to point to another zip")
 	subdirinzip := flag.String("indexdir", "rps-master", "Directory in zip which contains index.html (base directory)")
 	browse := flag.Bool("browse", true, "Start explorer with url")
+	verbose := flag.Bool("verbose", false, "Add more console output")
 	port := flag.Int("port", 17132, "Port for local web server")
 	bindto := flag.String("bind", "localhost", "Name for binding, keep localhost for extra security")
 	postscript := flag.String("postscript", "", "Run after json export, if empty, nothing is done")
 	scriptlang := flag.String("scriptlang", "cmd", "Select scripting language. Can be cmd or powershell on windows")
 
 	flag.Parse()
+
+	if *verbose {
+		log.Printf("postscript\t: %s", *postscript)
+		log.Printf("scriptlang\t: %s", *scriptlang)
+		log.Printf("bindto\t: %s", *bindto)
+		log.Printf("port\t: %d", *port)
+		log.Printf("openbrowser\t: %t", *browse)
+		log.Printf("masterpack\t: %s", *masterpack)
+		log.Printf("targetzip\t: %s", *targetzip)
+	}
 
 	if _, err := os.Stat(*targetzip); os.IsNotExist(err) {
 		out, err := os.Create(*targetzip)
@@ -92,7 +103,7 @@ func main() {
 		log.Println("Starting ", listenTo)
 
 		srv := &http.Server{Addr: listenTo}
-		http.Handle("/", ZipHandler{zipdata: zipr, self: srv, stop: stop, subdirinzip: *subdirinzip, postscript: *postscript, scriptlang: *scriptlang})
+		http.Handle("/", ZipHandler{zipdata: zipr, self: srv, stop: stop, verbose: verbose, subdirinzip: *subdirinzip, postscript: *postscript, scriptlang: *scriptlang})
 
 		go func() {
 			srv.ListenAndServe()
